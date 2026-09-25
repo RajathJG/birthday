@@ -52,9 +52,10 @@ branch → `main` / `(root)`**.
 - The band is a pointer affordance and is not built on touch devices.
 - `prefers-reduced-motion` skips the loading run and every entrance, and keeps
   the band, which only ever answers the pointer.
-- On a phone the report is one section per screen. The page snaps to the top of
-  each section, and the three long lists — ten metrics, twelve statements, ten
-  audit rows — become horizontal swipe decks rather than shrinking to fit. The
-  vertical snap is `proximity` rather than `mandatory` so a section that runs
-  long on a small handset can still be read to the end. Verified at 320, 360,
-  375, 390, 414 and 430 wide.
+- On a phone the report is one section per screen, and nothing scrolls
+  sideways. The page snaps to the top of each section; the lists stay vertical
+  and are simply set smaller, with the ten metrics as two columns of compact
+  tiles. The snap is `proximity` rather than `mandatory`, so a section that
+  does run long can still be read to the end. Verified at 360, 375, 390, 393,
+  414 and 430 wide — every section fits its screen. At 320 (a 4" handset,
+  effectively extinct) section 04 runs about 90px over and scrolls.
