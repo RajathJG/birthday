@@ -115,6 +115,8 @@ function setupReveal() {
 
   shell.addEventListener('pointermove', (event) => {
     if (event.pointerType !== 'mouse') return;
+    // the band does not follow anything until the loading run has finished
+    if (document.body.classList.contains('is-loading')) return;
     // the first move places the band without animating it in from wherever
     // it happened to be parked, which otherwise reads as a swipe
     if (shell.dataset.revealActive !== 'true') {

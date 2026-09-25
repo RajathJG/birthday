@@ -143,6 +143,12 @@ body.is-loading { overflow: hidden; }
 /* grid, not block: the clone has to keep header / hero / footer rows so it
    stays pixel-identical to the base layer underneath the band */
 .reveal[data-reveal-enabled="true"] .reveal__layer--reveal { display: grid; }
+/* The band is the page's reward for arriving, so it does not exist until the
+   loading run is over — during the run its 1px resting state reads as a stray
+   rule down the middle of the screen. */
+/* has to outrank the [data-reveal-enabled] rule above, which is why it
+   repeats the attribute rather than reading as the simpler selector */
+body.is-loading .reveal[data-reveal-enabled="true"] .reveal__layer--reveal { display: none; }
 .reveal[data-reveal-active="true"] { --reveal-width: var(--reveal-axis-width); }
 .reveal[data-reveal-instant="true"] .reveal__layer--reveal { transition: none; }
 
