@@ -747,10 +747,9 @@ body.is-loading .hero__headline { color: var(--faint); }
     gap: .75rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    /* the gutter is the page's, so a card can sit flush to the edge and the
-       next one peek in past it */
-    margin-inline: calc(var(--gutter) * -1);
-    padding-inline: var(--gutter);
+    /* no negative-margin bleed: it put the first card out of line with the
+       section heading above it, and a negative margin on a tbody is fragile
+       besides. The peek comes from the flex basis instead. */
     background: none;
     border: 0;
     -webkit-overflow-scrolling: touch;
@@ -760,21 +759,21 @@ body.is-loading .hero__headline { color: var(--faint); }
   .q12::-webkit-scrollbar,
   .audit tbody::-webkit-scrollbar { display: none; }
 
+  /* 88% leaves the next card showing at the right edge, which is the only
+     affordance that reliably says "this moves" */
   .metric, .q, .audit tbody tr {
-    flex: 0 0 78%;
+    flex: 0 0 88%;
     scroll-snap-align: start;
     border: 1px solid var(--hairline);
     background: var(--surface);
   }
 
-  /* the cards carry a floor height so a deck reads as a panel filling the
-     screen rather than a strip floating in the middle of it */
-  .metric { padding: 1.25rem; min-height: 34svh; align-content: start; }
+  .metric { padding: 1.25rem; align-content: start; }
   .metric__label { min-height: 2.6em; }
 
   /* the statements stop being an accordion: on a deck the verdict is what the
      card is for, so it is always open and the toggle has nothing to do */
-  .q { display: grid; align-content: start; padding: 1.25rem; min-height: 42svh; }
+  .q { display: grid; align-content: start; padding: 1.25rem; }
   .q__head { padding: 0; pointer-events: none; }
   .q__toggle { display: none; }
   .q__panel { grid-template-rows: 1fr !important; }
@@ -790,7 +789,7 @@ body.is-loading .hero__headline { color: var(--faint); }
   .audit { display: block; }
   .audit tbody tr {
     align-content: start;
-    padding: 1.25rem; min-height: 20svh;
+    padding: 1.25rem;
     border-bottom: 1px solid var(--hairline);
   }
   .audit tbody tr:last-child { border-bottom: 1px solid var(--hairline); }
