@@ -500,6 +500,9 @@ body.is-loading .hero__headline { color: var(--faint); }
 .q__head[aria-expanded="true"] + .q__panel > p { padding-bottom: 1.25rem; }
 
 /* --- Audit table ----------------------------------------------------------- */
+/* the swipe affordance belongs to the phone decks and nowhere else */
+.swipe-hint { display: none; }
+
 .table-wrap { overflow-x: auto; }
 .audit { width: 100%; border-collapse: collapse; font-size: .9375rem; min-width: 34rem; }
 .audit th {
@@ -675,4 +678,158 @@ body.is-loading .hero__headline { color: var(--faint); }
   [data-enter] { transition: none; }
   .q__panel { transition: none; }
   .overlay, .overlay__panel { transition: none; }
+}
+
+/* =========================================================================
+   Phone: one section per screen
+   -------------------------------------------------------------------------
+   A birthday link is opened on a phone, and the report was six screens of
+   vertical scrolling. Two changes make it one screen per section instead.
+
+   Vertically, each section is at least one viewport tall with its content
+   centred, and the page snaps to the top of each one. The snap is
+   `proximity`, not `mandatory`: section 01 is prose and can still run a
+   little long on a short handset, and mandatory would fight the reader
+   trying to reach the last line of it.
+
+   Horizontally, the three long lists stop being lists. Ten metrics, twelve
+   statements and ten audit rows cannot shrink vertically without going
+   unreadable, but they can go sideways — each becomes a swipe deck of cards
+   with x-snap, so the section header stays put and the content moves under
+   it. That is also a better way to read them: one figure, one joke, one
+   swipe.
+   ====================================================================== */
+@media (max-width: 40rem) {
+  html {
+    scroll-snap-type: y proximity;
+    /* the sticky-ish feel depends on the section top landing at the top of
+       the screen, not under the notch */
+    scroll-padding-top: 0;
+  }
+
+  .reveal, .section { scroll-snap-align: start; }
+
+  .section {
+    display: grid;
+    /* a grid item defaults to min-width:auto, so without this the section
+       sizes itself to the deck's full scroll width and takes the whole page
+       sideways with it */
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    min-height: 100svh;
+    padding-block: 3rem;
+  }
+  .section__head, .section__body { min-width: 0; }
+  .table-wrap, .audit { min-width: 0; width: 100%; }
+  .section__head { margin-bottom: 1.5rem; }
+  .section__lede { margin-bottom: 1.25rem; font-size: 1rem; line-height: 1.5; }
+
+  /* prose sections carry the most text, so they take the tightest setting */
+  .prose p { margin-bottom: .8125rem; font-size: .9375rem; line-height: 1.5; }
+  .lede { font-size: 1.125rem; line-height: 1.35; }
+  .verdict { margin-top: 1.5rem; }
+  .section--signoff .signoff__wish { margin-top: 1.75rem !important; }
+
+  /* --- the swipe affordance --- */
+  .swipe-hint {
+    display: flex; align-items: center; gap: .5rem;
+    margin: 0 0 .875rem;
+    font-family: var(--font-mono); font-size: .625rem;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+  }
+  .swipe-hint::after {
+    flex: 1; height: 1px; background: var(--hairline); content: "";
+  }
+
+  /* --- decks ---------------------------------------------------------- */
+  .metrics, .q12, .audit tbody {
+    display: flex;
+    gap: .75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* the gutter is the page's, so a card can sit flush to the edge and the
+       next one peek in past it */
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    background: none;
+    border: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .metrics::-webkit-scrollbar,
+  .q12::-webkit-scrollbar,
+  .audit tbody::-webkit-scrollbar { display: none; }
+
+  .metric, .q, .audit tbody tr {
+    flex: 0 0 78%;
+    scroll-snap-align: start;
+    border: 1px solid var(--hairline);
+    background: var(--surface);
+  }
+
+  /* the cards carry a floor height so a deck reads as a panel filling the
+     screen rather than a strip floating in the middle of it */
+  .metric { padding: 1.25rem; min-height: 34svh; align-content: start; }
+  .metric__label { min-height: 2.6em; }
+
+  /* the statements stop being an accordion: on a deck the verdict is what the
+     card is for, so it is always open and the toggle has nothing to do */
+  .q { display: grid; align-content: start; padding: 1.25rem; min-height: 42svh; }
+  .q__head { padding: 0; pointer-events: none; }
+  .q__toggle { display: none; }
+  .q__panel { grid-template-rows: 1fr !important; }
+  .q__panel > p {
+    padding-left: 0;
+    padding-top: .875rem;
+    padding-bottom: 0 !important;
+    font-size: .875rem; line-height: 1.5;
+  }
+  .q__head { font-size: 1rem; }
+  .q__n { padding-top: .15em; }
+
+  .audit { display: block; }
+  .audit tbody tr {
+    align-content: start;
+    padding: 1.25rem; min-height: 20svh;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .audit tbody tr:last-child { border-bottom: 1px solid var(--hairline); }
+  .table-wrap { overflow: visible; }
+
+  .plan { margin-bottom: 1.25rem; }
+  .plan label { padding-block: .6875rem; }
+}
+
+/* A short handset has ~150px less to work with than a current iPhone, and the
+ * two prose-heavy sections are what runs over first. Everything steps down a
+ * size rather than any of it being cut. The threshold is 900px so that a
+ * current iPhone (844) is included — at full size section 01 misses by about
+ * ten pixels, which is not worth leaving on the table.
+ */
+@media (max-width: 40rem) and (max-height: 900px) {
+  .section { padding-block: 2.25rem; }
+  .section__head { margin-bottom: 1.125rem; }
+  .section__title { font-size: 1.625rem; }
+  .section__lede { margin-bottom: 1rem; font-size: .9375rem; }
+  .prose p { margin-bottom: .6875rem; font-size: .875rem; line-height: 1.45; }
+  .lede { font-size: 1.0625rem; }
+  .verdict { margin-top: 1.125rem; padding-top: .75rem; }
+  .plan label { padding-block: .5rem; font-size: .9375rem; }
+  .plan { margin-bottom: 1rem; }
+  .plan__status { font-size: .75rem; }
+  .section--signoff .signoff__wish { margin-top: 1.25rem !important; font-size: 1.625rem; }
+}
+
+/* The small old handsets — a 4.7" screen has 700px of viewport. One more step
+ * down, and 01 and 05 are the only two that ever need it.
+ */
+@media (max-width: 40rem) and (max-height: 730px) {
+  .section { padding-block: 1.75rem; }
+  .section__head { margin-bottom: .875rem; }
+  .section__title { font-size: 1.5rem; }
+  .prose p { margin-bottom: .5625rem; font-size: .8125rem; line-height: 1.4; }
+  .lede { font-size: 1rem; line-height: 1.3; }
+  .section__lede { font-size: .875rem; margin-bottom: .875rem; }
+  .plan label { padding-block: .375rem; font-size: .875rem; }
+  .section--signoff .signoff__wish { font-size: 1.375rem; }
 }
