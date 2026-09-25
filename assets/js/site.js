@@ -25,11 +25,11 @@ function setupLoader() {
 
   const tasks = [
     'Establishing connection',
-    'Indexing situationships',
-    'Cross-referencing red flags',
-    'Recovering deleted drafts',
-    'Recalculating delulu index',
-    'Reconciling screen time',
+    'Indexing snarky remarks',
+    'Cross-referencing gym attendance',
+    'Detecting Playboy vibes',
+    'Counting unshared desserts',
+    'Verifying Gen-Z credentials',
     'Compiling findings',
   ];
 
