@@ -1,0 +1,672 @@
+/* ===========================================================================
+   NITALI — Annual Review FY26
+   ---------------------------------------------------------------------------
+   The visual system is taken from atlas.gpl-digital.in, studied directly
+   rather than eyeballed. What was taken is the structure and the interaction,
+   not the content:
+
+     - one warm off-white screen, near-black ink, pure black as the accent
+     - Geist / Geist Mono, nothing else
+     - a vertical black band that tracks the pointer across the hero and
+       reveals a fully inverted duplicate of the page through it
+     - brackets that open outwards on a button whose label flips on its own axis
+     - mono micro-labels, and numbered chips on anything that is a sequence
+
+   The loading run is from gpl-map.in instead, since atlas has none: the page
+   renders as it will finally look with its chrome held back, and a 1px rule
+   with a tabular-nums percentage is the only element that exists purely for
+   loading.
+
+   Reference measurements, theirs -> ours:
+     background     #f4f4f2   -> same
+     foreground     #141414   -> same
+     accent         #000000   -> same
+     headline       clamp(3.5rem, 20vw, 17rem) / 700 / -.045em / .88 -> same
+     band width     8.75rem   -> 8.75rem
+   ======================================================================== */
+
+:root {
+  --paper:      #f4f4f2;
+  --ink:        #141414;
+  --ink-rgb:    20, 20, 20;
+  --body:       #3a3a3a;
+  --muted:      #6d6d6d;
+  --faint:      #b3b3b3;
+  --surface:    #fbfbfa;
+  --hairline:   rgba(var(--ink-rgb), .14);
+  --sunken:     rgba(var(--ink-rgb), .055);
+
+  --accent:     #000000;
+
+  /* the inverted set, used only inside the reveal band */
+  --inv:        #f7f7f5;
+  --inv-rgb:    247, 247, 245;
+  --inv-body:   rgba(var(--inv-rgb), .9);
+  --inv-muted:  rgba(var(--inv-rgb), .825);
+  --inv-faint:  rgba(var(--inv-rgb), .58);
+  --inv-line:   rgba(var(--inv-rgb), .3);
+
+  --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", "SF Mono", Consolas, Menlo, monospace;
+
+  --dur:       .35s;
+  --ease-out:  cubic-bezier(.2, .7, .2, 1);
+  --ease-soft: cubic-bezier(.16, 1, .3, 1);
+
+  --gutter: clamp(1.5rem, calc(.607rem + 3.214vw), 3.5rem);
+  --measure: 34rem;
+
+  /* written by site.js every frame */
+  --reveal-position: 60%;
+  --reveal-width: 1px;
+  --reveal-axis-width: 8.75rem;
+
+  --layer-base: 1;
+  --layer-reveal: 2;
+  --layer-loader: 8;
+  --layer-overlay: 20;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* nothing scrolls while the loading run is going */
+body.is-loading { overflow: hidden; }
+
+.container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  max-width: 120rem;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: absolute; top: -100%; left: var(--gutter); z-index: 100;
+  padding: .625rem 1rem; background: var(--accent); color: var(--inv);
+  font-family: var(--font-mono); font-size: .8125rem; text-decoration: none;
+}
+.skip-link:focus { top: .75rem; }
+
+:focus-visible { outline: 2px solid currentColor; outline-offset: .25rem; }
+
+/* --- The reveal shell -----------------------------------------------------
+ * Both layers sit in the same grid cell. The reveal layer is the same markup
+ * in inverted colours, clipped to a vertical band whose left edge is written
+ * by JS. Cloning rather than duplicating the markup by hand is the whole
+ * reason the two stay pixel-identical.
+ */
+.reveal {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  overflow-x: clip;
+  background: var(--paper);
+  isolation: isolate;
+}
+.reveal__layer {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 100svh;
+}
+.reveal__layer--base { z-index: var(--layer-base); }
+
+.reveal__layer--reveal {
+  z-index: var(--layer-reveal);
+  display: none;
+  overflow: hidden;
+  background: var(--accent);
+  color: var(--inv);
+  pointer-events: none;
+  clip-path: inset(0 calc(100% - var(--reveal-position) - var(--reveal-width) / 2)
+                   0 calc(var(--reveal-position) - var(--reveal-width) / 2));
+  transition: clip-path var(--dur) var(--ease-out);
+}
+/* grid, not block: the clone has to keep header / hero / footer rows so it
+   stays pixel-identical to the base layer underneath the band */
+.reveal[data-reveal-enabled="true"] .reveal__layer--reveal { display: grid; }
+.reveal[data-reveal-active="true"] { --reveal-width: var(--reveal-axis-width); }
+.reveal[data-reveal-instant="true"] .reveal__layer--reveal { transition: none; }
+
+.reveal__layer--reveal .header__brand,
+.reveal__layer--reveal .hero__headline { color: var(--inv); }
+.reveal__layer--reveal .hero__label,
+.reveal__layer--reveal .hero__description,
+.reveal__layer--reveal .hero__meta,
+.reveal__layer--reveal .hero__time,
+.reveal__layer--reveal .header__link,
+.reveal__layer--reveal .shell-footer { color: var(--inv-body); }
+.reveal__layer--reveal .hero__marker,
+.reveal__layer--reveal .header__brand-dot { background: var(--inv); }
+.reveal__layer--reveal .header,
+.reveal__layer--reveal .shell-footer { border-color: var(--inv-line); }
+.reveal__layer--reveal .button { --button-accent: var(--inv-faint); color: var(--inv); }
+
+/* --- Header ---------------------------------------------------------------- */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  padding-block: clamp(.625rem, 1.7dvh, 1.125rem);
+  border-bottom: 1px solid var(--hairline);
+}
+.header__brand {
+  display: inline-flex; align-items: baseline; gap: .3rem;
+  font-size: .9375rem; font-weight: 700; letter-spacing: -.01em;
+}
+.header__brand-dot {
+  width: .3125rem; height: .3125rem; background: var(--accent);
+  align-self: center;
+}
+.header__nav { display: flex; gap: clamp(1rem, 3vw, 2rem); }
+.header__link {
+  appearance: none; padding: 0; border: 0; background: transparent;
+  color: inherit; cursor: pointer; text-decoration: none;
+  font-family: var(--font-mono); font-size: .8125rem; letter-spacing: .02em;
+}
+/* the label rolls up behind a mask on hover */
+.header__link span {
+  display: inline-block; position: relative;
+  transition: transform .42s var(--ease-soft);
+}
+.header__link span::after {
+  position: absolute; left: 0; right: 0; bottom: -.2em; height: 0;
+  border-top: 1px solid currentColor; content: "";
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform .4s var(--ease-soft);
+}
+.header__link:hover span::after,
+.header__link:focus-visible span::after { transform: scaleX(1); }
+
+/* --- Hero ------------------------------------------------------------------ */
+.hero {
+  --headline-size: clamp(3.5rem, 20vw, 17rem);
+  position: relative; display: grid; min-height: 0; overflow-x: clip;
+}
+.hero__section {
+  z-index: 3; display: grid;
+  grid-template-rows: minmax(0, .32fr) auto minmax(0, 1fr) auto;
+  min-height: inherit;
+  padding-block: clamp(2rem, min(4.25dvh, 7vw), 3.25rem)
+                 clamp(2rem, min(4dvh, 6vw), 2.5rem);
+}
+.hero__intro { grid-row: 2; min-width: 0; }
+
+.hero__label {
+  margin: 0; color: var(--body);
+  font-family: var(--font-mono); font-size: .875rem;
+  letter-spacing: .06em; line-height: 1.2;
+}
+.hero__label-sep { color: var(--faint); padding-inline: .25em; }
+
+.hero__headline {
+  margin: clamp(1rem, min(3.2dvh, 6vw), 2.5rem) 0 0;
+  font-size: var(--headline-size); font-weight: 700;
+  letter-spacing: -.045em; line-height: .88;
+}
+
+.hero__description {
+  max-width: 24rem;
+  margin: clamp(1.25rem, min(2.7dvh, 5vw), 2rem) 0 0;
+  color: var(--muted);
+  font-size: clamp(1rem, calc(.925rem + .32vw), 1.125rem);
+  line-height: 1.56;
+}
+
+.hero__bottom {
+  grid-row: 4; display: flex; gap: 1rem;
+  align-items: flex-end; justify-content: space-between;
+}
+.hero__meta {
+  display: grid; grid-template-columns: .5rem auto; gap: .25rem .75rem;
+  align-items: center; margin: 0;
+  color: var(--body); font-family: var(--font-mono); font-size: .75rem;
+  letter-spacing: .06em; line-height: 1.2; text-transform: uppercase;
+}
+.hero__marker { display: block; width: .5rem; height: .5rem; background: var(--accent); }
+.hero__time { grid-column: 2; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hero__actions { display: flex; flex-direction: column; align-items: flex-end; }
+
+/* --- The bracketed button --------------------------------------------------
+ * The brackets step outwards while a rule wipes in under the label, and the
+ * label itself rotates away over the top as a second face comes up from below.
+ */
+.button {
+  --button-size: clamp(1.375rem, calc(1.25rem + .35vw), 1.5rem);
+  --button-accent: var(--accent);
+  appearance: none; display: inline-flex; align-items: center;
+  padding: 0; border: 0; background: transparent;
+  color: inherit; text-decoration: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: var(--button-size);
+  font-weight: 600; letter-spacing: -.02em; line-height: 1;
+}
+.button--lg {
+  --button-size: clamp(1.5rem, calc(1.1rem + 1vw), 2rem);
+  font-weight: 700; letter-spacing: -.03em;
+}
+.button::before, .button::after {
+  display: inline-block; color: var(--button-accent);
+  transition: transform .3s var(--ease-soft);
+}
+.button::before { order: 0; content: "["; margin-right: .4em; }
+.button::after  { order: 2; content: "]"; margin-left: .4em; }
+.button:hover::before, .button:focus-visible::before { transform: translateX(-.2em) scale(1.12); }
+.button:hover::after,  .button:focus-visible::after  { transform: translateX(.2em) scale(1.12); }
+
+/* The label rolls up behind a mask, the same gesture the nav links use.
+ * A 3D flip was tried first and abandoned: translateZ under a short
+ * perspective magnifies the resting face by ~15%, which overflows the label
+ * box and drives the text straight through the brackets. A mask cannot do
+ * that, and at this size the two read almost identically.
+ */
+.button__label { order: 1; position: relative; display: inline-block; }
+.button__flip {
+  position: relative; display: block; height: 1.15em; line-height: 1.15;
+  overflow: hidden;
+}
+.button__face {
+  display: block; white-space: nowrap;
+  transition: transform .42s var(--ease-soft);
+}
+.button__face--back {
+  position: absolute; top: 0; left: 0; width: 100%;
+  transform: translateY(100%);
+}
+.button:hover .button__face, .button:focus-visible .button__face {
+  transform: translateY(-100%);
+}
+.button:hover .button__face--back, .button:focus-visible .button__face--back {
+  transform: translateY(0);
+}
+.button__label::after {
+  position: absolute; right: 0; bottom: -.14em; left: 0; height: 0;
+  border-top: 1px solid currentColor; content: "";
+  opacity: 0; transform: scaleX(0); transform-origin: left center;
+  transition: transform .4s var(--ease-soft), opacity .16s ease-out;
+}
+.button:hover .button__label::after,
+.button:focus-visible .button__label::after { opacity: 1; transform: scaleX(1); }
+
+/* When the band is parked on the call to action, the pointer is looking at the
+ * inverted clone, not the button it is actually over. Drive the hover off the
+ * band's anchor state instead of :hover and both layers react together —
+ * without this the two labels roll independently and interleave through the
+ * band into nonsense.
+ */
+.reveal[data-reveal-anchor="cta"] .button__face { transform: translateY(-100%); }
+.reveal[data-reveal-anchor="cta"] .button__face--back { transform: translateY(0); }
+.reveal[data-reveal-anchor="cta"] .button::before { transform: translateX(-.2em) scale(1.12); }
+.reveal[data-reveal-anchor="cta"] .button::after  { transform: translateX(.2em) scale(1.12); }
+.reveal[data-reveal-anchor="cta"] .button__label::after { opacity: 1; transform: scaleX(1); }
+
+/* --- Shell footer ---------------------------------------------------------- */
+.shell-footer {
+  display: flex; gap: 1rem; align-items: baseline; justify-content: space-between;
+  padding-block: 1rem;
+  border-top: 1px solid var(--hairline);
+  color: var(--muted); font-family: var(--font-mono); font-size: .75rem;
+  letter-spacing: .04em;
+}
+.shell-footer p { margin: 0; display: flex; gap: 1rem; }
+
+/* --- The loading run -------------------------------------------------------
+ * There is no overlay. The page renders as it will finally look, with its
+ * chrome held back by body.is-loading; the rule below is the only element
+ * that exists purely for loading.
+ */
+.loader {
+  position: fixed; left: 50%; bottom: clamp(3rem, 12vh, 6rem);
+  z-index: var(--layer-loader);
+  transform: translateX(-50%);
+  width: min(26rem, 76vw);
+  transition: opacity .4s var(--ease-out);
+}
+.loader.is-done { opacity: 0; pointer-events: none; }
+.loader__task {
+  margin: 0 0 .75rem;
+  color: var(--muted); font-family: var(--font-mono); font-size: .6875rem;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.loader__bar { display: flex; align-items: center; gap: .875rem; }
+.loader__pct {
+  flex: 0 0 auto; color: var(--faint);
+  font-family: var(--font-mono); font-size: .625rem; letter-spacing: .08em;
+  font-variant-numeric: tabular-nums;
+}
+.loader__rule { position: relative; flex: 1; height: 1px; background: var(--hairline); }
+.loader__fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink); }
+
+/* --- Entrance --------------------------------------------------------------
+ * The chrome is held at zero while body.is-loading is set and fades in on its
+ * own stagger when the run finishes. The headline and the description are
+ * deliberately NOT in this set: they are what the loading state shows.
+ *
+ * A transition driven by the class, not a keyframe with a delay — an
+ * animation would play out on its own schedule regardless of whether loading
+ * had actually finished, which is the thing this has to wait for.
+ *
+ * The animation is the failsafe: if the script never runs, nothing removes
+ * .is-loading, and at 6s this reveals everything regardless.
+ */
+[data-enter] {
+  opacity: 1; transform: none;
+  transition: opacity .6s var(--ease-out), transform .6s var(--ease-out);
+  transition-delay: var(--enter-delay, 0s);
+}
+body.is-loading [data-enter] {
+  opacity: 0; transform: translateY(6px);
+  animation: enter-failsafe .01s linear 6s forwards;
+}
+@keyframes enter-failsafe { to { opacity: 1; transform: none; } }
+
+/* the headline types itself in during the run */
+body.is-loading .hero__headline { color: var(--faint); }
+.hero__headline { transition: color .8s var(--ease-out); }
+
+/* =========================================================================
+   The report
+   ====================================================================== */
+.report { position: relative; z-index: 3; background: var(--paper); }
+
+.section { padding-block: clamp(4rem, 12vh, 8rem); border-top: 1px solid var(--hairline); }
+.section__head { display: flex; align-items: baseline; gap: 1rem; margin-bottom: clamp(1.75rem, 4vw, 3rem); }
+.section__title {
+  margin: 0; font-size: clamp(1.75rem, calc(1.3rem + 2vw), 3.25rem);
+  font-weight: 700; letter-spacing: -.035em; line-height: 1;
+}
+.chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.25rem; padding: .25rem .5rem;
+  background: var(--accent); color: var(--inv);
+  font-family: var(--font-mono); font-size: .75rem; letter-spacing: .06em;
+}
+.section__lede {
+  max-width: var(--measure); margin: 0 0 2rem;
+  color: var(--muted); font-size: 1.0625rem; line-height: 1.6;
+}
+
+.prose { max-width: var(--measure); }
+.prose p { margin: 0 0 1.25rem; color: var(--body); line-height: 1.65; }
+.prose em { font-style: italic; color: var(--ink); }
+.lede {
+  font-size: clamp(1.125rem, calc(1rem + .6vw), 1.5rem);
+  font-weight: 500; letter-spacing: -.015em; line-height: 1.4;
+  color: var(--ink) !important;
+}
+
+.verdict {
+  display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: baseline;
+  margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--ink);
+}
+.verdict__label {
+  font-family: var(--font-mono); font-size: .6875rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.verdict__value { font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+
+/* --- Metrics ---------------------------------------------------------------
+ * A plain rule-separated grid rather than cards: the figure is the thing, and
+ * a box around each one would make ten equal boxes out of ten unequal jokes.
+ */
+.metrics {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1px; background: var(--hairline);
+  border-block: 1px solid var(--hairline);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+.metric { display: grid; grid-template-rows: auto auto 1fr; gap: .5rem; padding: 1.5rem; background: var(--paper); }
+.metric__label {
+  font-family: var(--font-mono); font-size: .6875rem; line-height: 1.3;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.metric__value {
+  font-size: clamp(2.25rem, calc(1.8rem + 1.8vw), 3.5rem); font-weight: 700;
+  letter-spacing: -.045em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.metric__value--text { font-size: clamp(1.5rem, calc(1.2rem + 1.2vw), 2.25rem); }
+.metric__of { font-size: .4em; font-weight: 500; letter-spacing: -.01em; color: var(--muted); margin-left: .2em; }
+.metric__note { font-size: .8125rem; color: var(--muted); line-height: 1.4; }
+/* Two lines' worth of label whether it needs them or not, so every figure in a
+   row sits on the same line however long its label runs. Only once the cells
+   are actually side by side — in one column it is just a gap. */
+@media (min-width: 40rem) {
+  .metric__label { min-height: 2.6em; }
+}
+
+/* --- The Q12 ---------------------------------------------------------------
+ * An accordion, because the verdict landing after a beat is the joke.
+ */
+.q12 { list-style: none; margin: 0; padding: 0; counter-reset: none; border-top: 1px solid var(--hairline); }
+.q { border-bottom: 1px solid var(--hairline); }
+.q__head {
+  appearance: none; width: 100%; display: flex; gap: 1rem; align-items: flex-start;
+  padding: 1.125rem 0; border: 0; background: transparent; cursor: pointer;
+  color: inherit; text-align: left; font-family: inherit;
+  font-size: clamp(.9375rem, calc(.875rem + .3vw), 1.125rem);
+  font-weight: 500; letter-spacing: -.01em; line-height: 1.45;
+  transition: color .2s var(--ease-out);
+}
+.q__head:hover { color: var(--muted); }
+.q__n {
+  flex: 0 0 auto; padding-top: .2em;
+  font-family: var(--font-mono); font-size: .75rem; font-weight: 400;
+  letter-spacing: .06em; color: var(--faint);
+}
+.q__text { flex: 1 1 auto; }
+.q__toggle {
+  flex: 0 0 auto; position: relative; width: .75rem; height: .75rem; margin-top: .4em;
+}
+.q__toggle::before, .q__toggle::after {
+  position: absolute; top: 50%; left: 0; width: 100%; height: 1px;
+  background: var(--ink); content: ""; transition: transform .3s var(--ease-soft);
+}
+.q__toggle::after { transform: rotate(90deg); }
+.q__head[aria-expanded="true"] .q__toggle::after { transform: rotate(0deg); }
+
+.q__panel {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .38s var(--ease-soft);
+}
+.q__head[aria-expanded="true"] + .q__panel { grid-template-rows: 1fr; }
+.q__panel > p {
+  overflow: hidden; margin: 0;
+  max-width: var(--measure);
+  padding-left: 2.25rem;
+  color: var(--body); line-height: 1.6;
+}
+.q__head[aria-expanded="true"] + .q__panel > p { padding-bottom: 1.25rem; }
+
+/* --- Audit table ----------------------------------------------------------- */
+.table-wrap { overflow-x: auto; }
+.audit { width: 100%; border-collapse: collapse; font-size: .9375rem; min-width: 34rem; }
+.audit th {
+  padding: .75rem 1rem .75rem 0; text-align: left;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-mono); font-size: .6875rem; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.audit td {
+  padding: .875rem 1rem .875rem 0;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--body); line-height: 1.45;
+}
+.audit tr td:first-child { color: var(--ink); }
+.audit td[data-sev] {
+  width: 1%; white-space: nowrap;
+  font-family: var(--font-mono); font-size: .75rem; letter-spacing: .04em;
+}
+/* severity reads through weight and a mark, not colour — there is no colour */
+.audit td[data-sev]::before {
+  display: inline-block; width: .5rem; height: .5rem; margin-right: .5rem;
+  content: ""; vertical-align: baseline;
+  border: 1px solid var(--ink);
+}
+.audit td[data-sev="med"]::before  { background: linear-gradient(to right, var(--ink) 50%, transparent 50%); }
+.audit td[data-sev="high"]::before { background: var(--ink); }
+.audit td[data-sev="crit"]::before { background: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--ink); }
+.audit tr:last-child td { border-bottom: 0; }
+
+/* On a phone the table stops being a table. A birthday link is opened on a
+ * phone almost every time, and a three-column grid that has to be dragged
+ * sideways to read the punchline is not worth keeping for the sake of the
+ * shape. Each row becomes a block: the observation, then its two facts on one
+ * mono line underneath.
+ */
+@media (max-width: 40rem) {
+  .audit { min-width: 0; }
+  .audit thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .audit tr {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.75rem;
+    padding-block: 1rem; border-bottom: 1px solid var(--hairline);
+  }
+  .audit td { padding: 0; border: 0; }
+  .audit tr td:first-child { flex: 1 0 100%; color: var(--ink); }
+  /* the cell is a flex row so the label can be ordered ahead of the pip and
+     the value — a ::after reading "MEDIUM / SEVERITY" has it backwards */
+  .audit td[data-label] {
+    display: flex; gap: .45rem; align-items: baseline;
+    width: auto; white-space: nowrap;
+    font-family: var(--font-mono); font-size: .6875rem;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+  }
+  .audit td[data-label]::after {
+    order: -1; content: attr(data-label); color: var(--faint);
+  }
+  .audit td[data-sev]::before { margin-right: 0; }
+  .audit tr:last-child { border-bottom: 0; }
+}
+
+/* --- Action plan ----------------------------------------------------------- */
+.plan { list-style: none; margin: 0 0 1.75rem; padding: 0; max-width: 40rem; border-top: 1px solid var(--hairline); }
+.plan li { border-bottom: 1px solid var(--hairline); }
+.plan label {
+  display: flex; gap: 1rem; align-items: flex-start;
+  padding: 1rem 0; cursor: pointer; line-height: 1.5;
+}
+.plan input {
+  appearance: none; flex: 0 0 auto; position: relative;
+  width: 1.125rem; height: 1.125rem; margin: .1875rem 0 0;
+  border: 1px solid var(--ink); background: transparent; cursor: pointer;
+  transition: background .2s var(--ease-out);
+}
+.plan input::after {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: var(--inv); font-size: .75rem; line-height: 1; content: "";
+}
+.plan input:checked { background: var(--accent); }
+.plan input:checked::after { content: "\2713"; }
+.plan input:checked + span { color: var(--faint); text-decoration: line-through; }
+.plan span { transition: color .2s var(--ease-out); }
+.plan__status {
+  margin: 0; font-family: var(--font-mono); font-size: .8125rem;
+  letter-spacing: .04em; color: var(--muted);
+}
+
+/* --- Sign-off -------------------------------------------------------------- */
+.section--signoff .section__body { max-width: 38rem; }
+.signoff__wish {
+  margin-top: 2.5rem !important;
+  font-size: clamp(1.75rem, calc(1.3rem + 2vw), 3rem); font-weight: 700;
+  letter-spacing: -.04em; line-height: 1.05; color: var(--ink) !important;
+}
+.signoff__by {
+  font-family: var(--font-mono); font-size: .8125rem; letter-spacing: .02em;
+  color: var(--muted) !important;
+}
+
+.report-footer {
+  display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; justify-content: space-between;
+  padding-block: 2rem 3rem; border-top: 1px solid var(--hairline);
+  color: var(--faint); font-family: var(--font-mono); font-size: .75rem; letter-spacing: .04em;
+}
+.report-footer p { margin: 0; }
+.report-footer span { color: var(--faint); margin-left: .5rem; }
+
+/* --- Overlay --------------------------------------------------------------- */
+.overlay {
+  position: fixed; inset: 0; z-index: var(--layer-overlay);
+  display: grid; place-items: center; padding: var(--gutter);
+  visibility: hidden; opacity: 0;
+  transition: opacity .32s var(--ease-out), visibility .32s;
+}
+.overlay[data-overlay-state="open"] { visibility: visible; opacity: 1; }
+.overlay__backdrop {
+  position: absolute; inset: 0; appearance: none; border: 0; padding: 0;
+  background: rgba(var(--ink-rgb), .18); cursor: pointer;
+}
+.overlay__panel {
+  position: relative; width: min(38rem, 100%);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background: var(--surface); border: 1px solid var(--ink);
+  transform: translateY(8px);
+  transition: transform .42s var(--ease-soft);
+}
+.overlay[data-overlay-state="open"] .overlay__panel { transform: none; }
+.overlay__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.75rem; }
+.overlay__eyebrow {
+  display: flex; align-items: center; gap: .625rem; margin: 0;
+  font-family: var(--font-mono); font-size: .6875rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.overlay__marker { width: .5rem; height: .5rem; background: var(--accent); }
+.overlay__close {
+  appearance: none; padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: var(--ink); font-family: var(--font-mono); font-size: .75rem; letter-spacing: .06em;
+}
+.overlay__close:hover { color: var(--muted); }
+.overlay__title {
+  margin: 0 0 1.25rem; font-size: clamp(1.375rem, calc(1.1rem + 1.2vw), 1.875rem);
+  font-weight: 700; letter-spacing: -.03em; line-height: 1.1;
+}
+.overlay__note {
+  margin-bottom: 0 !important; padding-top: 1rem; border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono); font-size: .8125rem; letter-spacing: .02em;
+  color: var(--muted) !important;
+}
+
+/* --- Narrow screens -------------------------------------------------------- */
+@media (max-width: 40rem) {
+  .hero__bottom { flex-direction: column; align-items: flex-start; gap: 1.75rem; }
+  .hero__actions { align-items: flex-start; }
+  .shell-footer { flex-direction: column; gap: .375rem; }
+  .shell-footer p { gap: .75rem; }
+  .section__head { gap: .75rem; }
+  .q__panel > p { padding-left: 0; }
+  .loader { bottom: 2rem; }
+}
+
+/* the band is a pointer affordance; on touch there is no pointer */
+@media (hover: none), (pointer: coarse) {
+  .reveal__layer--reveal { display: none !important; }
+}
+
+/* --- Reduced motion --------------------------------------------------------
+ * The band is the page's one idea, so it is kept — it answers the pointer
+ * directly and never moves on its own. What goes is everything that animates
+ * without being asked.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal__layer--reveal { transition: none; }
+  .button__face, .button::before, .button::after { transition: none; }
+  [data-enter] { transition: none; }
+  .q__panel { transition: none; }
+  .overlay, .overlay__panel { transition: none; }
+}
